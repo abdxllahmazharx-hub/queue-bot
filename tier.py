@@ -7,6 +7,8 @@ GUILD_ID = 1491802017851769065
 TESTER_ROLE_NAME = "Testers"
 MAX_PLAYERS = 10
 
+RESULT_CHANNEL = 1491828092946350191
+
 CHANNELS = {
     "Sword": 1491827421480222900,
     "DiaPot": 1491833787770863778,
@@ -38,12 +40,12 @@ panel_owner = None
 queue_message = {}
 
 
-# ---------- CHECK TESTER ----------
+# ---------- TESTER CHECK ----------
 def is_tester(interaction):
     return any(role.name == TESTER_ROLE_NAME for role in interaction.user.roles)
 
 
-# ---------- EMBED ----------
+# ---------- QUEUE EMBED ----------
 def build_embed():
     embed = discord.Embed(
         title=f"⚔ {current_mode} Queue",
@@ -70,7 +72,7 @@ def build_embed():
     return embed
 
 
-# ---------- VIEW ----------
+# ---------- QUEUE BUTTONS ----------
 class QueueView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -139,13 +141,11 @@ async def open_panel(interaction, mode):
 
     channel = bot.get_channel(CHANNELS[mode])
 
-    msg = await channel.send(
+    await channel.send(
         f"@here 💙 **{mode} Queue Opened**",
         allowed_mentions=discord.AllowedMentions(everyone=True),
         view=QueueView()
     )
-
-    queue_message[mode] = msg.id
 
     await update_queue()
     await interaction.response.send_message("Queue opened ✔", ephemeral=True)
@@ -231,22 +231,61 @@ async def result(interaction, member: discord.Member, gamemode: str, tier: str, 
     embed.description = (
         f"{member.mention} Result:\n\n"
         f"**IGN:** {ign}\n"
+        f"**Tier:** {tier}\n"
         f"**Ranked:** {points} Points\n"
         f"**GameMode:** {gamemode}\n\n"
         f"**Tester:** {tester.mention}\n\n"
         f"McPvP-Tierlist: https://www.mcpvptiers.xyz/"
     )
 
-    await interaction.response.send_message(embed=embed)
+    channel = bot.get_channel(RESULT_CHANNEL)
+    await channel.send(embed=embed)
+
+    await interaction.response.send_message("Result posted ✔", ephemeral=True)
+
+
+# ---------- TICKET SYSTEM ----------
+class TicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Support", style=discord.ButtonStyle.primary)
+    async def support(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.channel.send(f"{interaction.user.mention} Support ticket opened 🎫")
+
+    @discord.ui.button(label="Partnership", style=discord.ButtonStyle.success)
+    async def partner(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.channel.send(f"{interaction.user.mention} Partnership ticket opened 🤝")
+
+    @discord.ui.button(label="Rank Purchase", style=discord.ButtonStyle.danger)
+    async def rank(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.channel.send(f"{interaction.user.mention} Rank purchase ticket opened 💰")
+
+
+@bot.tree.command(name="ticket_add_tick", guild=discord.Object(id=GUILD_ID))
+async def ticket_add_tick(interaction):
+
+    if not is_tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+
+    embed = discord.Embed(
+        title="🎫 Ticket Panel",
+        description="Select an option below:",
+        color=0x4aa3ff
+    )
+
+    await interaction.channel.send(embed=embed, view=TicketView())
+    await interaction.response.send_message("Ticket panel created ✔", ephemeral=True)
 
 
 # ---------- READY ----------
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+
     try:
         await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-        print("Slash commands synced")
+        print("Slash commands synced ✔")
     except Exception as e:
         print("Sync error:", e)
 
