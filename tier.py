@@ -4,17 +4,11 @@ import os
 
 # ---------- CONFIG ----------
 GUILD_ID = 1491802017851769065
-
 TESTER_ROLE_NAME = "Testers"
-TEAM_ROLE_NAME = "Team"
-
-# YOUR TIER ROLE (IMPORTANT FIX)
-TIER_ROLE_ID = 1491803602908479809
-
 MAX_PLAYERS = 10
 
 RESULT_CHANNEL = 1491828092946350191
-TICKET_CATEGORY_ID = 1491835386081837177
+TICKET_CATEGORY_ID = 1491846625054949426
 
 CHANNELS = {
     "Sword": 1491827421480222900,
@@ -36,8 +30,8 @@ POINTS = {
 }
 
 intents = discord.Intents.default()
-intents.members = True
 intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -47,26 +41,28 @@ panel_owner = None
 queue_message = {}
 
 
-# ---------- CHECK TESTER ----------
+# ---------- TESTER CHECK ----------
 def is_tester(interaction):
     return any(role.name == TESTER_ROLE_NAME for role in interaction.user.roles)
 
 
-# =========================================================
-#                       QUEUE SYSTEM
-# =========================================================
-
+# ---------- QUEUE EMBED ----------
 def build_embed():
     embed = discord.Embed(
         title=f"⚔ {current_mode} Queue",
+        description=f"{current_mode} Tier Testing (Max {MAX_PLAYERS})",
         color=0x4aa3ff
     )
 
-    embed.add_field(
-        name="Queue",
-        value="\n".join([u.mention for u in queue]) if queue else "Empty",
-        inline=False
-    )
+    if len(queue) == 0:
+        embed.add_field(name="Queue (0/10)", value="Empty", inline=False)
+    else:
+        embed.add_field(
+            name=f"Queue ({len(queue)}/10)",
+            value="\n".join(f"{i+1}. {u.mention} ({u.display_name})"
+                            for i, u in enumerate(queue)),
+            inline=False
+        )
 
     embed.add_field(
         name="Tester",
@@ -77,12 +73,13 @@ def build_embed():
     return embed
 
 
+# ---------- QUEUE BUTTONS ----------
 class QueueView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="Join Queue", style=discord.ButtonStyle.primary)
-    async def join(self, interaction, button):
+    async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user in queue:
             return await interaction.response.send_message("Already in queue", ephemeral=True)
 
@@ -94,14 +91,18 @@ class QueueView(discord.ui.View):
         await update_queue()
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.secondary)
-    async def leave(self, interaction, button):
+    async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user in queue:
             queue.remove(interaction.user)
+            await interaction.response.send_message("Left ✔", ephemeral=True)
+        else:
+            await interaction.response.send_message("Not in queue", ephemeral=True)
 
         await update_queue()
 
 
-async def update_queue():
+# ---------- UPDATE ----------
+async def _update_queue():
     channel = bot.get_channel(CHANNELS[current_mode])
     msg_id = queue_message.get(current_mode)
 
@@ -117,6 +118,21 @@ async def update_queue():
     queue_message[current_mode] = msg.id
 
 
+async def update_queue():
+    await _update_queue()
+
+    if len(queue) == MAX_PLAYERS:
+        channel = bot.get_channel(CHANNELS[current_mode])
+        players = queue[:]
+        queue.clear()
+
+        await channel.send(
+            f"🔥 **MATCH READY ({current_mode})** 🔥\n\n" +
+            "\n".join(p.mention for p in players)
+        )
+
+
+# ---------- OPEN PANEL ----------
 async def open_panel(interaction, mode):
     global current_mode, panel_owner, queue
 
@@ -136,10 +152,69 @@ async def open_panel(interaction, mode):
     await interaction.response.send_message("Queue opened ✔", ephemeral=True)
 
 
-# =========================================================
-#                       RESULT SYSTEM
-# =========================================================
+# ---------- SLASH CHECK ----------
+def tester(interaction):
+    return is_tester(interaction)
 
+
+# ---------- OPEN COMMANDS ----------
+@bot.tree.command(name="opensword", guild=discord.Object(id=GUILD_ID))
+async def opensword(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "Sword")
+
+
+@bot.tree.command(name="openaxe", guild=discord.Object(id=GUILD_ID))
+async def openaxe(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "Axe")
+
+
+@bot.tree.command(name="opennethpot", guild=discord.Object(id=GUILD_ID))
+async def opennethpot(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "NethPot")
+
+
+@bot.tree.command(name="opendiapot", guild=discord.Object(id=GUILD_ID))
+async def opendiapot(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "DiaPot")
+
+
+@bot.tree.command(name="opencrystal", guild=discord.Object(id=GUILD_ID))
+async def opencrystal(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "Crystal")
+
+
+@bot.tree.command(name="opendiasmp", guild=discord.Object(id=GUILD_ID))
+async def opendiasmp(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "DiaSMP")
+
+
+@bot.tree.command(name="opensmp", guild=discord.Object(id=GUILD_ID))
+async def opensmp(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "SMP")
+
+
+@bot.tree.command(name="openmace", guild=discord.Object(id=GUILD_ID))
+async def openmace(interaction):
+    if not tester(interaction):
+        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+    await open_panel(interaction, "Mace")
+
+
+# ---------- RESULT ----------
 @bot.tree.command(name="result", guild=discord.Object(id=GUILD_ID))
 async def result(interaction, member: discord.Member, gamemode: str, tier: str, ign: str, tester: discord.Member):
 
@@ -149,17 +224,20 @@ async def result(interaction, member: discord.Member, gamemode: str, tier: str, 
     tier = tier.upper()
 
     if tier not in POINTS:
-        return await interaction.response.send_message("Invalid tier", ephemeral=True)
+        return await interaction.response.send_message("❌ Invalid tier", ephemeral=True)
+
+    points = POINTS[tier]
 
     embed = discord.Embed(title="⚔ Match Result", color=0x4aa3ff)
 
     embed.description = (
-        f"**Player:** {member.mention}\n"
+        f"{member.mention} Result:\n\n"
         f"**IGN:** {ign}\n"
         f"**Tier:** {tier}\n"
-        f"**Points:** {POINTS[tier]}\n"
-        f"**Gamemode:** {gamemode}\n"
-        f"**Tester:** {tester.mention}"
+        f"**Ranked:** {points} Points\n"
+        f"**GameMode:** {gamemode}\n\n"
+        f"**Tester:** {tester.mention}\n\n"
+        f"McPvP-Tierlist: https://www.mcpvptiers.xyz/"
     )
 
     channel = bot.get_channel(RESULT_CHANNEL)
@@ -168,110 +246,62 @@ async def result(interaction, member: discord.Member, gamemode: str, tier: str, 
     await interaction.response.send_message("Result posted ✔", ephemeral=True)
 
 
-# =========================================================
-#                       TICKET SYSTEM (FINAL FIX)
-# =========================================================
-
+# ---------- TICKET CLOSE BUTTON ----------
 class TicketCloseView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger)
-    async def close(self, interaction, button):
+    async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
 
-        guild = interaction.guild
-        team = discord.utils.get(guild.roles, name=TEAM_ROLE_NAME)
+        if not is_tester(interaction):
+            return await interaction.response.send_message("❌ Testers only can close tickets", ephemeral=True)
 
-        if team:
-            await interaction.channel.send(f"{team.mention} 🚨 Ticket closed by {interaction.user.mention}")
-
-        await interaction.channel.send("🗑 Closing ticket...")
+        await interaction.response.send_message("Closing ticket...", ephemeral=True)
         await interaction.channel.delete()
 
 
+# ---------- TICKET SYSTEM ----------
 class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    async def create_ticket(self, interaction, ttype):
+    async def create_ticket(self, interaction, name):
         guild = interaction.guild
-        user = interaction.user
-
-        category = discord.utils.get(guild.categories, id=TICKET_CATEGORY_ID)
-
-        team_role = discord.utils.get(guild.roles, name=TEAM_ROLE_NAME)
-        tester_role = discord.utils.get(guild.roles, name=TESTER_ROLE_NAME)
-        tier_role = guild.get_role(TIER_ROLE_ID)
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True),
+            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
         }
 
-        # Testers
+        tester_role = discord.utils.get(guild.roles, name=TESTER_ROLE_NAME)
         if tester_role:
-            overwrites[tester_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
-
-        # Team
-        if team_role:
-            overwrites[team_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
-
-        # Tier Role (FIXED ID)
-        if tier_role:
-            overwrites[tier_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
+            overwrites[tester_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
 
         channel = await guild.create_text_channel(
-            name=f"ticket-{user.name}-{ttype}",
-            category=category,
-            overwrites=overwrites
+            name=f"ticket-{interaction.user.name}-{name}",
+            overwrites=overwrites,
+            category=discord.utils.get(guild.categories, id=TICKET_CATEGORY_ID)
         )
 
-        embed = discord.Embed(
-            title="🎫 TICKET OPENED",
-            description=(
-                f"**User:** {user.mention}\n"
-                f"**Type:** {ttype}\n\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                "**Support = Help / Issues**\n"
-                "**Rank Purchase = Buy ranks**\n"
-                "**Partnership = Deals / Collab**\n"
-                "━━━━━━━━━━━━━━━━━━\n\n"
-                "Please explain your issue clearly."
-            ),
-            color=0x4aa3ff
+        await channel.send(
+            f"{interaction.user.mention} Ticket created 🎫\nTesters will assist you soon.",
+            view=TicketCloseView()
         )
 
-        await channel.send(content=user.mention, embed=embed, view=TicketCloseView())
-
-        await interaction.response.send_message(
-            f"Ticket created: {channel.mention}",
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
 
     @discord.ui.button(label="Support", style=discord.ButtonStyle.primary)
-    async def support(self, interaction, button):
-        await self.create_ticket(interaction, "Support")
+    async def support(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.create_ticket(interaction, "support")
 
-    @discord.ui.button(label="Rank Purchase", style=discord.ButtonStyle.success)
-    async def rank(self, interaction, button):
-        await self.create_ticket(interaction, "Rank Purchase")
+    @discord.ui.button(label="Partnership", style=discord.ButtonStyle.success)
+    async def partner(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.create_ticket(interaction, "partner")
 
-    @discord.ui.button(label="Partnership", style=discord.ButtonStyle.danger)
-    async def partner(self, interaction, button):
-        await self.create_ticket(interaction, "Partnership")
+    @discord.ui.button(label="Rank Purchase", style=discord.ButtonStyle.danger)
+    async def rank(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.create_ticket(interaction, "rank")
 
 
 @bot.tree.command(name="ticket_add_tick", guild=discord.Object(id=GUILD_ID))
@@ -281,343 +311,26 @@ async def ticket_add_tick(interaction):
         return await interaction.response.send_message("❌ Testers only", ephemeral=True)
 
     embed = discord.Embed(
-        title="🎫 TICKET SYSTEM",
-        description=(
-            "Click a button below to open a ticket\n\n"
-            "Support → Help / Issues\n"
-            "Rank Purchase → Buy ranks\n"
-            "Partnership → Deals / collab"
-        ),
+        title="🎫 Ticket Panel",
+        description="Select an option below:",
         color=0x4aa3ff
     )
 
     await interaction.channel.send(embed=embed, view=TicketView())
-    await interaction.response.send_message("Ticket panel sent ✔", ephemeral=True)
+    await interaction.response.send_message("Ticket panel created ✔", ephemeral=True)
 
 
-# =========================================================
-#                       READY
-# =========================================================
-
+# ---------- READY ----------
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
-    await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
 
+    try:
+        await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        print("Slash commands synced ✔")
+    except Exception as e:
+        print("Sync error:", e)
 
-# =========================================================
-#                       RUN
-# =========================================================
 
-bot.run(os.getenv("TOKEN"))import discord
-from discord.ext import commands
-import os
-
-# ---------- CONFIG ----------
-GUILD_ID = 1491802017851769065
-
-TESTER_ROLE_NAME = "Testers"
-TEAM_ROLE_NAME = "Team"
-
-# YOUR TIER ROLE (IMPORTANT FIX)
-TIER_ROLE_ID = 1491803602908479809
-
-MAX_PLAYERS = 10
-
-RESULT_CHANNEL = 1491828092946350191
-TICKET_CATEGORY_ID = 1491835386081837177
-
-CHANNELS = {
-    "Sword": 1491827421480222900,
-    "DiaPot": 1491833787770863778,
-    "NethPot": 1491833200161591527,
-    "Axe": 1491833874911854722,
-    "Crystal": 1493205644579180594,
-    "DiaSMP": 1493237939222876261,
-    "SMP": 1493237981480488970,
-    "Mace": 1493238029312331899
-}
-
-POINTS = {
-    "LT5": 1, "HT5": 3,
-    "LT4": 5, "HT4": 8,
-    "LT3": 12, "HT3": 15,
-    "LT2": 20, "HT2": 25,
-    "LT1": 30, "HT1": 35
-}
-
-intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
-
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-queue = []
-current_mode = None
-panel_owner = None
-queue_message = {}
-
-
-# ---------- CHECK TESTER ----------
-def is_tester(interaction):
-    return any(role.name == TESTER_ROLE_NAME for role in interaction.user.roles)
-
-
-# =========================================================
-#                       QUEUE SYSTEM
-# =========================================================
-
-def build_embed():
-    embed = discord.Embed(
-        title=f"⚔ {current_mode} Queue",
-        color=0x4aa3ff
-    )
-
-    embed.add_field(
-        name="Queue",
-        value="\n".join([u.mention for u in queue]) if queue else "Empty",
-        inline=False
-    )
-
-    embed.add_field(
-        name="Tester",
-        value=panel_owner.mention if panel_owner else "None",
-        inline=False
-    )
-
-    return embed
-
-
-class QueueView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="Join Queue", style=discord.ButtonStyle.primary)
-    async def join(self, interaction, button):
-        if interaction.user in queue:
-            return await interaction.response.send_message("Already in queue", ephemeral=True)
-
-        if len(queue) >= MAX_PLAYERS:
-            return await interaction.response.send_message("Queue full", ephemeral=True)
-
-        queue.append(interaction.user)
-        await interaction.response.send_message("Joined ✔", ephemeral=True)
-        await update_queue()
-
-    @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.secondary)
-    async def leave(self, interaction, button):
-        if interaction.user in queue:
-            queue.remove(interaction.user)
-
-        await update_queue()
-
-
-async def update_queue():
-    channel = bot.get_channel(CHANNELS[current_mode])
-    msg_id = queue_message.get(current_mode)
-
-    if msg_id:
-        try:
-            msg = await channel.fetch_message(msg_id)
-            await msg.edit(embed=build_embed(), view=QueueView())
-            return
-        except:
-            pass
-
-    msg = await channel.send(embed=build_embed(), view=QueueView())
-    queue_message[current_mode] = msg.id
-
-
-async def open_panel(interaction, mode):
-    global current_mode, panel_owner, queue
-
-    current_mode = mode
-    panel_owner = interaction.user
-    queue = []
-
-    channel = bot.get_channel(CHANNELS[mode])
-
-    await channel.send(
-        f"@here 💙 **{mode} Queue Opened**",
-        allowed_mentions=discord.AllowedMentions(everyone=True),
-        view=QueueView()
-    )
-
-    await update_queue()
-    await interaction.response.send_message("Queue opened ✔", ephemeral=True)
-
-
-# =========================================================
-#                       RESULT SYSTEM
-# =========================================================
-
-@bot.tree.command(name="result", guild=discord.Object(id=GUILD_ID))
-async def result(interaction, member: discord.Member, gamemode: str, tier: str, ign: str, tester: discord.Member):
-
-    if not is_tester(interaction):
-        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
-
-    tier = tier.upper()
-
-    if tier not in POINTS:
-        return await interaction.response.send_message("Invalid tier", ephemeral=True)
-
-    embed = discord.Embed(title="⚔ Match Result", color=0x4aa3ff)
-
-    embed.description = (
-        f"**Player:** {member.mention}\n"
-        f"**IGN:** {ign}\n"
-        f"**Tier:** {tier}\n"
-        f"**Points:** {POINTS[tier]}\n"
-        f"**Gamemode:** {gamemode}\n"
-        f"**Tester:** {tester.mention}"
-    )
-
-    channel = bot.get_channel(RESULT_CHANNEL)
-    await channel.send(embed=embed)
-
-    await interaction.response.send_message("Result posted ✔", ephemeral=True)
-
-
-# =========================================================
-#                       TICKET SYSTEM (FINAL FIX)
-# =========================================================
-
-class TicketCloseView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger)
-    async def close(self, interaction, button):
-
-        guild = interaction.guild
-        team = discord.utils.get(guild.roles, name=TEAM_ROLE_NAME)
-
-        if team:
-            await interaction.channel.send(f"{team.mention} 🚨 Ticket closed by {interaction.user.mention}")
-
-        await interaction.channel.send("🗑 Closing ticket...")
-        await interaction.channel.delete()
-
-
-class TicketView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    async def create_ticket(self, interaction, ttype):
-        guild = interaction.guild
-        user = interaction.user
-
-        category = discord.utils.get(guild.categories, id=TICKET_CATEGORY_ID)
-
-        team_role = discord.utils.get(guild.roles, name=TEAM_ROLE_NAME)
-        tester_role = discord.utils.get(guild.roles, name=TESTER_ROLE_NAME)
-        tier_role = guild.get_role(TIER_ROLE_ID)
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True),
-        }
-
-        # Testers
-        if tester_role:
-            overwrites[tester_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
-
-        # Team
-        if team_role:
-            overwrites[team_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
-
-        # Tier Role (FIXED ID)
-        if tier_role:
-            overwrites[tier_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
-
-        channel = await guild.create_text_channel(
-            name=f"ticket-{user.name}-{ttype}",
-            category=category,
-            overwrites=overwrites
-        )
-
-        embed = discord.Embed(
-            title="🎫 TICKET OPENED",
-            description=(
-                f"**User:** {user.mention}\n"
-                f"**Type:** {ttype}\n\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                "**Support = Help / Issues**\n"
-                "**Rank Purchase = Buy ranks**\n"
-                "**Partnership = Deals / Collab**\n"
-                "━━━━━━━━━━━━━━━━━━\n\n"
-                "Please explain your issue clearly."
-            ),
-            color=0x4aa3ff
-        )
-
-        await channel.send(content=user.mention, embed=embed, view=TicketCloseView())
-
-        await interaction.response.send_message(
-            f"Ticket created: {channel.mention}",
-            ephemeral=True
-        )
-
-    @discord.ui.button(label="Support", style=discord.ButtonStyle.primary)
-    async def support(self, interaction, button):
-        await self.create_ticket(interaction, "Support")
-
-    @discord.ui.button(label="Rank Purchase", style=discord.ButtonStyle.success)
-    async def rank(self, interaction, button):
-        await self.create_ticket(interaction, "Rank Purchase")
-
-    @discord.ui.button(label="Partnership", style=discord.ButtonStyle.danger)
-    async def partner(self, interaction, button):
-        await self.create_ticket(interaction, "Partnership")
-
-
-@bot.tree.command(name="ticket_add_tick", guild=discord.Object(id=GUILD_ID))
-async def ticket_add_tick(interaction):
-
-    if not is_tester(interaction):
-        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
-
-    embed = discord.Embed(
-        title="🎫 TICKET SYSTEM",
-        description=(
-            "Click a button below to open a ticket\n\n"
-            "Support → Help / Issues\n"
-            "Rank Purchase → Buy ranks\n"
-            "Partnership → Deals / collab"
-        ),
-        color=0x4aa3ff
-    )
-
-    await interaction.channel.send(embed=embed, view=TicketView())
-    await interaction.response.send_message("Ticket panel sent ✔", ephemeral=True)
-
-
-# =========================================================
-#                       READY
-# =========================================================
-
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user}")
-    await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-
-
-# =========================================================
-#                       RUN
-# =========================================================
-
+# ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
