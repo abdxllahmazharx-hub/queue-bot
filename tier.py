@@ -90,6 +90,36 @@ class QueueView(discord.ui.View):
         await interaction.response.send_message("Joined ✔", ephemeral=True)
         await update_queue()
 
+    @discord.ui.button(label="Close Queue", style=discord.ButtonStyle.danger)
+    async def close_queue(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        if not is_tester(interaction):
+            return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+
+        if interaction.user != panel_owner:
+            return await interaction.response.send_message("❌ Only queue opener can close this", ephemeral=True)
+
+        queue.clear()
+
+        channel = bot.get_channel(CHANNELS[current_mode])
+        msg_id = queue_message.get(current_mode)
+
+        if msg_id:
+            try:
+                msg = await channel.fetch_message(msg_id)
+                await msg.edit(
+                    embed=discord.Embed(
+                        title=f"⚔ {current_mode} Queue Closed",
+                        description="Queue has been closed.",
+                        color=0xff0000
+                    ),
+                    view=None
+                )
+            except:
+                pass
+
+        await interaction.response.send_message("Queue closed ✔", ephemeral=True)
+
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.secondary)
     async def leave(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user in queue:
@@ -311,9 +341,14 @@ async def ticket_add_tick(interaction):
         return await interaction.response.send_message("❌ Testers only", ephemeral=True)
 
     embed = discord.Embed(
-        title="🎫 Ticket Panel",
-        description="Select an option below:",
-        color=0x4aa3ff
+        title="🎫 TICKET SYSTEM",
+        description=(
+            "Click a button below to open ticket\n\n"
+            "Support -> Help / Issues\n"
+            "Rank Purchase -> Buy ranks\n"
+            "Partnership -> Deals / collab"
+        ),
+        color=0x2f3136
     )
 
     await interaction.channel.send(embed=embed, view=TicketView())
