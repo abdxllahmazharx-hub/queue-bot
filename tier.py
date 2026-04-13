@@ -8,6 +8,9 @@ GUILD_ID = 1491802017851769065
 TESTER_ROLE_NAME = "Testers"
 TEAM_ROLE_NAME = "Team"
 
+# YOUR TIER ROLE (IMPORTANT FIX)
+TIER_ROLE_ID = 1491803602908479809
+
 MAX_PLAYERS = 10
 
 RESULT_CHANNEL = 1491828092946350191
@@ -44,7 +47,7 @@ panel_owner = None
 queue_message = {}
 
 
-# ---------- CHECK ----------
+# ---------- CHECK TESTER ----------
 def is_tester(interaction):
     return any(role.name == TESTER_ROLE_NAME for role in interaction.user.roles)
 
@@ -198,6 +201,7 @@ class TicketView(discord.ui.View):
 
         team_role = discord.utils.get(guild.roles, name=TEAM_ROLE_NAME)
         tester_role = discord.utils.get(guild.roles, name=TESTER_ROLE_NAME)
+        tier_role = guild.get_role(TIER_ROLE_ID)
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -205,7 +209,7 @@ class TicketView(discord.ui.View):
             guild.me: discord.PermissionOverwrite(view_channel=True),
         }
 
-        # TESTERS CAN SEE ALL TICKETS
+        # Testers
         if tester_role:
             overwrites[tester_role] = discord.PermissionOverwrite(
                 view_channel=True,
@@ -213,9 +217,17 @@ class TicketView(discord.ui.View):
                 read_message_history=True
             )
 
-        # TEAM CAN SEE ALL TICKETS
+        # Team
         if team_role:
             overwrites[team_role] = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            )
+
+        # Tier Role (FIXED ID)
+        if tier_role:
+            overwrites[tier_role] = discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
                 read_message_history=True
