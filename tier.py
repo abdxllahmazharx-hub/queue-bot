@@ -4,6 +4,7 @@ import os
 
 # ---------- CONFIG ----------
 GUILD_ID = 1491802017851769065
+
 TESTER_ROLE_NAME = "Testers"
 TEAM_ROLE_NAME = "Team"
 
@@ -43,7 +44,7 @@ panel_owner = None
 queue_message = {}
 
 
-# ---------- CHECK TESTER ----------
+# ---------- CHECK ----------
 def is_tester(interaction):
     return any(role.name == TESTER_ROLE_NAME for role in interaction.user.roles)
 
@@ -54,26 +55,21 @@ def is_tester(interaction):
 
 def build_embed():
     embed = discord.Embed(
-        title=f"⚔ {current_mode} Queue Panel",
+        title=f"⚔ {current_mode} Queue",
         color=0x4aa3ff
     )
 
     embed.add_field(
-        name="Queue Info",
-        value=f"Max Players: {MAX_PLAYERS}\nCurrent: {len(queue)}",
+        name="Queue",
+        value="\n".join([u.mention for u in queue]) if queue else "Empty",
         inline=False
     )
 
-    if queue:
-        embed.add_field(
-            name="Players",
-            value="\n".join([u.mention for u in queue]),
-            inline=False
-        )
-    else:
-        embed.add_field(name="Players", value="Empty", inline=False)
-
-    embed.add_field(name="Tester", value=panel_owner.mention if panel_owner else "None", inline=False)
+    embed.add_field(
+        name="Tester",
+        value=panel_owner.mention if panel_owner else "None",
+        inline=False
+    )
 
     return embed
 
@@ -98,7 +94,6 @@ class QueueView(discord.ui.View):
     async def leave(self, interaction, button):
         if interaction.user in queue:
             queue.remove(interaction.user)
-            await interaction.response.send_message("Left ✔", ephemeral=True)
 
         await update_queue()
 
@@ -156,11 +151,11 @@ async def result(interaction, member: discord.Member, gamemode: str, tier: str, 
     embed = discord.Embed(title="⚔ Match Result", color=0x4aa3ff)
 
     embed.description = (
-        f"**Player:** {member.mention}\n\n"
+        f"**Player:** {member.mention}\n"
         f"**IGN:** {ign}\n"
         f"**Tier:** {tier}\n"
         f"**Points:** {POINTS[tier]}\n"
-        f"**GameMode:** {gamemode}\n"
+        f"**Gamemode:** {gamemode}\n"
         f"**Tester:** {tester.mention}"
     )
 
@@ -171,7 +166,7 @@ async def result(interaction, member: discord.Member, gamemode: str, tier: str, 
 
 
 # =========================================================
-#                       TICKET SYSTEM (BIG UI)
+#                       TICKET SYSTEM (FIXED FINAL)
 # =========================================================
 
 class TicketCloseView(discord.ui.View):
@@ -202,11 +197,21 @@ class TicketView(discord.ui.View):
 
         category = discord.utils.get(guild.categories, id=TICKET_CATEGORY_ID)
 
+        team_role = discord.utils.get(guild.roles, name=TEAM_ROLE_NAME)
+
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True)
+            guild.me: discord.PermissionOverwrite(view_channel=True),
         }
+
+        # TEAM ROLE CAN SEE ALL TICKETS
+        if team_role:
+            overwrites[team_role] = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            )
 
         channel = await guild.create_text_channel(
             name=f"ticket-{user.name}-{ttype}",
@@ -215,23 +220,26 @@ class TicketView(discord.ui.View):
         )
 
         embed = discord.Embed(
-            title="🎫 NEW TICKET",
+            title="🎫 TICKET OPENED",
             description=(
-                f"**User:** {user.mention}\n\n"
+                f"**User:** {user.mention}\n"
                 f"**Type:** {ttype}\n\n"
                 "━━━━━━━━━━━━━━━━━━\n"
-                "**Support =** Help / Issues\n"
-                "**Rank Purchase =** Buy ranks / upgrades\n"
-                "**Partnership =** Server deals / collab\n"
+                "**Support = Help / Issues**\n"
+                "**Rank Purchase = Buy ranks**\n"
+                "**Partnership = Deals / Collab**\n"
                 "━━━━━━━━━━━━━━━━━━\n\n"
-                "Please explain your request clearly."
+                "Please explain your issue clearly."
             ),
             color=0x4aa3ff
         )
 
         await channel.send(content=user.mention, embed=embed, view=TicketCloseView())
 
-        await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
+        await interaction.response.send_message(
+            f"Ticket created: {channel.mention}",
+            ephemeral=True
+        )
 
     @discord.ui.button(label="Support", style=discord.ButtonStyle.primary)
     async def support(self, interaction, button):
@@ -255,13 +263,10 @@ async def ticket_add_tick(interaction):
     embed = discord.Embed(
         title="🎫 TICKET SYSTEM",
         description=(
-            "━━━━━━━━━━━━━━━━━━\n"
-            "Click a button below to open a ticket\n"
-            "━━━━━━━━━━━━━━━━━━\n\n"
-            "🟦 Support → Help / Issues\n"
-            "🟩 Rank Purchase → Buy ranks\n"
-            "🟥 Partnership → Server deals\n"
-            "━━━━━━━━━━━━━━━━━━"
+            "Click a button below to open a ticket\n\n"
+            "Support → Help / Issues\n"
+            "Rank Purchase → Buy ranks\n"
+            "Partnership → Deals / collab"
         ),
         color=0x4aa3ff
     )
@@ -271,19 +276,8 @@ async def ticket_add_tick(interaction):
 
 
 # =========================================================
-#                       QUEUE COMMANDS
+#                       READY
 # =========================================================
-
-def tester(interaction):
-    return is_tester(interaction)
-
-
-@bot.tree.command(name="opensword", guild=discord.Object(id=GUILD_ID))
-async def opensword(interaction):
-    if not tester(interaction):
-        return await interaction.response.send_message("❌ Testers only", ephemeral=True)
-    await open_panel(interaction, "Sword")
-
 
 @bot.event
 async def on_ready():
@@ -291,5 +285,8 @@ async def on_ready():
     await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
 
 
-# ---------- RUN ----------
+# =========================================================
+#                       RUN
+# =========================================================
+
 bot.run(os.getenv("TOKEN"))
