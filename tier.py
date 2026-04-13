@@ -166,7 +166,7 @@ async def result(interaction, member: discord.Member, gamemode: str, tier: str, 
 
 
 # =========================================================
-#                       TICKET SYSTEM (FIXED FINAL)
+#                       TICKET SYSTEM (FINAL FIX)
 # =========================================================
 
 class TicketCloseView(discord.ui.View):
@@ -183,7 +183,6 @@ class TicketCloseView(discord.ui.View):
             await interaction.channel.send(f"{team.mention} 🚨 Ticket closed by {interaction.user.mention}")
 
         await interaction.channel.send("🗑 Closing ticket...")
-
         await interaction.channel.delete()
 
 
@@ -198,6 +197,7 @@ class TicketView(discord.ui.View):
         category = discord.utils.get(guild.categories, id=TICKET_CATEGORY_ID)
 
         team_role = discord.utils.get(guild.roles, name=TEAM_ROLE_NAME)
+        tester_role = discord.utils.get(guild.roles, name=TESTER_ROLE_NAME)
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -205,7 +205,15 @@ class TicketView(discord.ui.View):
             guild.me: discord.PermissionOverwrite(view_channel=True),
         }
 
-        # TEAM ROLE CAN SEE ALL TICKETS
+        # TESTERS CAN SEE ALL TICKETS
+        if tester_role:
+            overwrites[tester_role] = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            )
+
+        # TEAM CAN SEE ALL TICKETS
         if team_role:
             overwrites[team_role] = discord.PermissionOverwrite(
                 view_channel=True,
