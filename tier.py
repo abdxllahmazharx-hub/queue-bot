@@ -53,7 +53,7 @@ def is_tester(interaction):
 
 
 # =========================================================
-#                       QUEUE SYSTEM
+#                        QUEUE SYSTEM
 # =========================================================
 
 def build_embed():
@@ -101,26 +101,15 @@ class QueueView(discord.ui.View):
         await update_queue()
 
     @discord.ui.button(label="Close Queue", style=discord.ButtonStyle.danger)
-    async def close_queue(self, interaction, button):
+    async def close_queue(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not is_tester(interaction):
             return await interaction.response.send_message("❌ Testers only", ephemeral=True)
-
-        global current_mode, panel_owner, queue
-
-        # Delete the queue panel message
-        try:
-            await interaction.message.delete()
-        except:
-            pass
         
-        if current_mode in queue_message:
-            del queue_message[current_mode]
-
-        # Reset variables
+        global current_mode, panel_owner, queue
+        await interaction.message.delete()
         current_mode = None
         panel_owner = None
         queue = []
-
         await interaction.response.send_message("Queue closed ✔", ephemeral=True)
 
 
@@ -160,7 +149,7 @@ async def open_panel(interaction, mode):
 
 
 # =========================================================
-#                       RESULT SYSTEM
+#                        RESULT SYSTEM
 # =========================================================
 
 @bot.tree.command(name="result", guild=discord.Object(id=GUILD_ID))
@@ -192,7 +181,7 @@ async def result(interaction, member: discord.Member, gamemode: str, tier: str, 
 
 
 # =========================================================
-#                       TICKET SYSTEM (FINAL FIX)
+#                        TICKET SYSTEM (FINAL FIX)
 # =========================================================
 
 class TicketCloseView(discord.ui.View):
@@ -319,7 +308,7 @@ async def ticket_add_tick(interaction):
 
 
 # =========================================================
-#                       READY
+#                        READY
 # =========================================================
 
 @bot.event
@@ -329,7 +318,7 @@ async def on_ready():
 
 
 # =========================================================
-#                       RUN
+#                        RUN
 # =========================================================
 
 bot.run(os.getenv("TOKEN"))
