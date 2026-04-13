@@ -100,6 +100,29 @@ class QueueView(discord.ui.View):
 
         await update_queue()
 
+    @discord.ui.button(label="Close Queue", style=discord.ButtonStyle.danger)
+    async def close_queue(self, interaction, button):
+        if not is_tester(interaction):
+            return await interaction.response.send_message("❌ Testers only", ephemeral=True)
+
+        global current_mode, panel_owner, queue
+
+        # Delete the queue panel message
+        try:
+            await interaction.message.delete()
+        except:
+            pass
+        
+        if current_mode in queue_message:
+            del queue_message[current_mode]
+
+        # Reset variables
+        current_mode = None
+        panel_owner = None
+        queue = []
+
+        await interaction.response.send_message("Queue closed ✔", ephemeral=True)
+
 
 async def update_queue():
     channel = bot.get_channel(CHANNELS[current_mode])
